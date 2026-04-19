@@ -1,83 +1,33 @@
-import streamlit as st
+from flask import Flask, request, render_template
 import pickle
-import re
-import numpy as np
-import pandas as pd
 import os
+import re
 
-# Page configuration
-st.set_page_config(page_title="Fake News Detector", layout="wide", initial_sidebar_state="expanded")
+app = Flask(__name__)
 
-# Custom CSS
-st.markdown("""
-<style>
-    .main {
-        padding: 2rem;
-    }
-    .fake-news {
-        background-color: #ffcccc;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 5px solid #ff0000;
-    }
-    .real-news {
-        background-color: #ccffcc;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 5px solid #00cc00;
-    }
-</style>
-""", unsafe_allow_html=True)
+base_dir = os.path.dirname(__file__)
+model = pickle.load(open(os.path.join(base_dir, "dataset/model.pkl"), "rb"))
+vectorizer = pickle.load(open(os.path.join(base_dir, "dataset/vectorizer.pkl"), "rb"))
 
-# ✅ FIXED MODEL LOADING
-@st.cache_resource
-def load_model():
-    try:
-        base_dir = os.path.dirname(__file__)
-
-        model_path = os.path.join(base_dir, "dataset", "model.pkl")
-        vectorizer_path = os.path.join(base_dir, "dataset", "vectorizer.pkl")
-
-        model = pickle.load(open(model_path, "rb"))
-        vectorizer = pickle.load(open(vectorizer_path, "rb"))
-
-        return model, vectorizer
-
-    except Exception as e:
-        st.error(f"❌ Model load error: {e}")
-        return None, None
-
-
-# Text cleaning
 def clean_text(text):
     text = text.lower()
     text = re.sub(r'\W', ' ', text)
     text = re.sub(r'\s+', ' ', text)
     return text
 
-# UI
-st.title("🔍 Fake News Detection System")
-st.write("This app uses Machine Learning to detect fake news.")
+@app.route("/", methods=["GET", "POST"])
+def home():
+    result = ""
+    if request.method == "POST":
+        news = request.form["news"]
+        cleaned = clean_text(news)
+        vec = vectorizer.transform([cleaned])
+        pred = model.predict(vec)[0]
 
-model, vectorizer = load_model()
+        result = "REAL NEWS ✅" if pred == 1 else "FAKE NEWS ❌"
 
-if model is not None and vectorizer is not None:
+    return render_template("index.html", result=result)
 
-    news_input = st.text_area("Enter news text:")
-
-    if st.button("Analyze"):
-        if news_input.strip():
-            cleaned = clean_text(news_input)
-            vec = vectorizer.transform([cleaned])
-
-            pred = model.predict(vec)[0]
-
-            if pred == 0:
-                st.markdown('<div class="fake-news">🚨 FAKE NEWS</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="real-news">✅ REAL NEWS</div>', unsafe_allow_html=True)
-        else:
-            st.warning("Enter some text")
-
-else:
-    st.error("❌ Model not loaded")
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
