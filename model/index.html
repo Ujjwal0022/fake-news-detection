@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fake News Detector</title>
+</head>
+<body style="text-align:center; font-family:Arial;">
+
+<h1>Fake News Detection System</h1>
+
+<form action="/predict" method="post">
+    <textarea name="news" rows="10" cols="60"></textarea><br><br>
+    <button type="submit">Check News</button>
+</form>
+
+<h2>{{ prediction_text }}</h2>
+
+</body>
+</html>
